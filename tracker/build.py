@@ -340,6 +340,38 @@ def write_json(path: str, payload: dict) -> None:
     log(f"wrote {path} ({os.path.getsize(path)} bytes)")
 
 
+def stamp_assets(docs_dir: str) -> None:
+    """Cache-bust ./app.js and ./styles.css in index.html with a short content hash.
+
+    GitHub Pages serves assets with a 10-minute cache and we can't change that header, so a plain
+    `<script src="./app.js">` lets a phone keep a stale UI after a deploy. Rewriting the refs to
+    `./app.js?v=<hash>` gives a new URL whenever the file's bytes change, forcing a fresh fetch.
+    The hash only changes when app.js/styles.css change, so index.html stays stable otherwise.
+    """
+    import hashlib
+    import re
+
+    index_path = os.path.join(docs_dir, "index.html")
+    blobs = []
+    for name in ("app.js", "styles.css"):
+        p = os.path.join(docs_dir, name)
+        if os.path.exists(p):
+            with open(p, "rb") as fh:
+                blobs.append(fh.read())
+    if not blobs or not os.path.exists(index_path):
+        return
+    ver = hashlib.sha1(b"".join(blobs)).hexdigest()[:8]
+    with open(index_path, encoding="utf-8") as fh:
+        html = fh.read()
+    new = re.sub(r"(\./(?:app\.js|styles\.css))(?:\?v=[0-9a-f]+)?", rf"\1?v={ver}", html)
+    if new != html:
+        tmp = index_path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write(new)
+        os.replace(tmp, index_path)
+        log(f"stamped index.html assets with ?v={ver}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m tracker.build",
@@ -371,6 +403,7 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     write_json(args.out, build_store(stores[0], args.data_dir))
+    stamp_assets(os.path.dirname(os.path.abspath(args.out)))
     return 0
 
 
