@@ -1,0 +1,61 @@
+# Scheduled price-tracking run for soulandmore.co.
+#
+# Why this exists: fetch the store's public /products.json, diff it against our stored
+# state, append any change events, rebuild the site's data file, and commit the result
+# back to `main` so GitHub Pages picks it up.
+#
+# Important operational notes:
+#   - This workflow intentionally has NO `push` trigger. Pushing code must never kick off
+#     a run — the repo owner does not want a failed-pipeline email every time someone
+#     commits. The only triggers are the cron schedule and manual workflow_dispatch.
+#   - Every run commits `data/soulandmore.co/state.json` even when no price changed,
+#     because its `generated_at`/`run_count` fields always change. That commit is what
+#     resets GitHub's 60-day scheduled-workflow inactivity timer — without it, GitHub
+#     would silently disable the schedule after ~2 months of "no activity".
+#   - The cron is deliberately offset to :17 past the hour (not :00) to dodge the
+#     stampede of workflows GitHub schedules right on the hour, which can delay runs.
+#     '17 5,17 * * *' is 05:17 and 17:17 UTC. Egypt observes DST (reinstated 2023), so in
+#     Cairo that is 08:17 / 20:17 during EEST (UTC+3, ~late Apr–late Oct) and 07:17 / 19:17
+#     during EET (UTC+2) the rest of the year. The cron itself is fixed UTC and unaffected.
+
+name: track
+
+on:
+  schedule:
+    - cron: '17 5,17 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: track
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Collect (fetch + diff + append)
+        run: python -m tracker.collect
+
+      - name: Build (rebuild docs/data.json)
+        run: python -m tracker.build
+
+      - name: Commit and push refreshed data
+        run: |
+          git config user.name "soulandmore-tracker[bot]"
+          git config user.email "soulandmore-tracker[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "data: refresh $(date -u +%Y-%m-%dT%H:%MZ)" || echo "nothing to commit"
+          git push
