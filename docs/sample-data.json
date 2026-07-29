@@ -1,0 +1,184 @@
+{
+  "store": "soulandmore.co",
+  "generated_at": "2026-07-29T17:00:11Z",
+  "currency": "EGP",
+  "product_count": 5,
+  "variant_count": 8,
+  "products": [
+    {
+      "product_id": 7042570879142,
+      "handle": "white-musk-splash",
+      "title": "White Musk Body Splash",
+      "vendor": "soulandmore",
+      "product_type": "Body Splash",
+      "url": "https://soulandmore.co/products/white-musk-splash",
+      "image": "https://cdn.shopify.com/s/files/1/0597/3586/7558/files/white-musk.jpg?v=1700000000",
+      "min_price": 19900,
+      "on_sale": true,
+      "available": true,
+      "variants": [
+        {
+          "variant_key": "7042570879142:Default Title",
+          "variant_id": 41292060065958,
+          "sku": "6223009681108",
+          "variant_title": "Default Title",
+          "price": 19900,
+          "compare_at": 35000,
+          "available": true,
+          "delisted": false,
+          "low": 19900,
+          "high": 27000,
+          "first_day": "2026-06-14",
+          "last_day": "2026-07-29",
+          "series": [
+            ["2026-06-14", 27000],
+            ["2026-07-15", 20000],
+            ["2026-07-29", 19900]
+          ]
+        }
+      ]
+    },
+    {
+      "product_id": 15438886535334,
+      "handle": "his-hers-bundle",
+      "title": "His & Hers Bundle",
+      "vendor": "soulandmore",
+      "product_type": "Bundle",
+      "url": "https://soulandmore.co/products/his-hers-bundle",
+      "image": "https://cdn.shopify.com/s/files/1/0597/3586/7558/files/his-hers.jpg?v=1700000001",
+      "min_price": 59900,
+      "on_sale": true,
+      "available": true,
+      "variants": [
+        {
+          "variant_key": "15438886535334:Destiny / Alp",
+          "variant_id": 56869886689446,
+          "sku": "6223009690001",
+          "variant_title": "Destiny / Alp",
+          "price": 59900,
+          "compare_at": 92000,
+          "available": true,
+          "delisted": false,
+          "low": 59900,
+          "high": 59900,
+          "first_day": "2026-07-27",
+          "last_day": "2026-07-29",
+          "series": [
+            ["2026-07-27", 59900]
+          ]
+        },
+        {
+          "variant_key": "15438886535334:Velvet Noir / Oud",
+          "variant_id": 56869886722214,
+          "sku": "6223009690002",
+          "variant_title": "Velvet Noir / Oud",
+          "price": 59900,
+          "compare_at": 92000,
+          "available": false,
+          "delisted": false,
+          "low": 59900,
+          "high": 59900,
+          "first_day": "2026-07-27",
+          "last_day": "2026-07-29",
+          "series": [
+            ["2026-07-27", 59900]
+          ]
+        }
+      ]
+    },
+    {
+      "product_id": 8018543804582,
+      "handle": "vanilla-splash",
+      "title": "Vanilla Body Splash",
+      "vendor": "soulandmore",
+      "product_type": "Body Splash",
+      "url": "https://soulandmore.co/products/vanilla-splash",
+      "image": "https://cdn.shopify.com/s/files/1/0597/3586/7558/files/vanilla.jpg?v=1700000002",
+      "min_price": 48500,
+      "on_sale": false,
+      "available": true,
+      "variants": [
+        {
+          "variant_key": "8018543804582:Default Title",
+          "variant_id": 45056677806246,
+          "sku": "6223009681580",
+          "variant_title": "Default Title",
+          "price": 48500,
+          "compare_at": null,
+          "available": true,
+          "delisted": false,
+          "low": 48500,
+          "high": 48500,
+          "first_day": "2026-07-29",
+          "last_day": "2026-07-29",
+          "series": [
+            ["2026-07-29", 48500]
+          ]
+        }
+      ]
+    },
+    {
+      "product_id": 8395926306982,
+      "handle": "bridal-satin-pillow-case",
+      "title": "Bridal Satin Pillow Case",
+      "vendor": "soulandmore",
+      "product_type": "Home",
+      "url": "https://soulandmore.co/products/bridal-satin-pillow-case",
+      "image": "",
+      "min_price": 22000,
+      "on_sale": false,
+      "available": false,
+      "variants": [
+        {
+          "variant_key": "8395926306982:Default Title",
+          "variant_id": 45500000000001,
+          "sku": "6223009690050",
+          "variant_title": "Default Title",
+          "price": 22000,
+          "compare_at": null,
+          "available": false,
+          "delisted": true,
+          "low": 22000,
+          "high": 22000,
+          "first_day": "2026-06-14",
+          "last_day": "2026-07-05",
+          "series": [
+            ["2026-06-14", 22000]
+          ]
+        }
+      ]
+    },
+    {
+      "product_id": 8646878363814,
+      "handle": "delicious-hair-mist",
+      "title": "Delicious Hair Mist",
+      "vendor": "soulandmore",
+      "product_type": "Hair Mist",
+      "url": "https://soulandmore.co/products/delicious-hair-mist",
+      "image": "https://cdn.shopify.com/s/files/1/0597/3586/7558/files/delicious.jpg?v=1700000003",
+      "min_price": 19900,
+      "on_sale": true,
+      "available": true,
+      "variants": [
+        {
+          "variant_key": "8646878363814:Default Title",
+          "variant_id": 45600000000002,
+          "sku": "6223009690060",
+          "variant_title": "Default Title",
+          "price": 19900,
+          "compare_at": 26000,
+          "available": true,
+          "delisted": false,
+          "low": 19900,
+          "high": 26000,
+          "first_day": "2026-06-14",
+          "last_day": "2026-07-29",
+          "series": [
+            ["2026-06-14", 26000],
+            ["2026-07-29", 19900]
+          ]
+        }
+      ]
+    }
+  ]
+}

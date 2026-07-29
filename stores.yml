@@ -1,0 +1,8 @@
+# Stores tracked by the collector. Seeded with soulandmore.co; designed for N stores.
+# Parsed with the stdlib only (a tiny purpose-built reader in tracker/common.py) — keep the
+# format flat and simple: a top-level `stores:` list of `- key: value` blocks, 2-space indent,
+# string values may be quoted or bare. Do NOT rely on full YAML features.
+stores:
+  - slug: soulandmore.co          # also the data/ directory name
+    base_url: https://soulandmore.co
+    currency: EGP
