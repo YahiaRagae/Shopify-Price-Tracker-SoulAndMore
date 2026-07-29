@@ -104,7 +104,7 @@ class TestEnvelope(unittest.TestCase):
                     if val is not None:
                         self.assertIsInstance(val, int, f"{key} must be int minor units")
                         seen += 1
-                for day, price in variant["series"]:
+                for day, price, *_ in variant["series"]:
                     self.assertRegex(day, r"^\d{4}-\d{2}-\d{2}$")
                     self.assertIsInstance(price, int, "series prices must be int minor units")
                     seen += 1
@@ -133,14 +133,14 @@ class TestVariantShape(unittest.TestCase):
         v = self.variants[WM]
         self.assertEqual(
             v["series"],
-            [["2026-06-14", 27000], ["2026-07-15", 20000], ["2026-07-29", 19900]],
+            [["2026-06-14", 27000, "live"], ["2026-07-15", 20000, "live"], ["2026-07-29", 19900, "live"]],
         )
 
     def test_availability_only_change_is_not_a_series_point(self):
         # The fixture's last White Musk event is a `change` at an unchanged 19900 that only
         # flipped `available` to false. It must not read as a price change.
         self.assertEqual(len(self.variants[WM]["series"]), 3)
-        self.assertEqual(self.variants[WM]["series"][-1], ["2026-07-29", 19900])
+        self.assertEqual(self.variants[WM]["series"][-1], ["2026-07-29", 19900, "live"])
 
     def test_low_high_from_observed_prices_only(self):
         v = self.variants[WM]
@@ -166,7 +166,7 @@ class TestVariantShape(unittest.TestCase):
 
     def test_single_point_day_one_series(self):
         v = self.variants[NOIR]
-        self.assertEqual(v["series"], [["2026-07-27", 54900]])
+        self.assertEqual(v["series"], [["2026-07-27", 54900, "live"]])
         self.assertEqual(v["low"], 54900)
         self.assertEqual(v["high"], 54900)
         self.assertEqual(v["first_day"], "2026-07-27")
@@ -174,7 +174,7 @@ class TestVariantShape(unittest.TestCase):
     def test_delisted_variant_keeps_history_and_gains_no_point(self):
         v = self.variants[BRIDAL]
         # The `delisted` event carries price=null and must not become a series point.
-        self.assertEqual(v["series"], [["2026-06-14", 22000]])
+        self.assertEqual(v["series"], [["2026-06-14", 22000, "live"]])
         self.assertIs(v["delisted"], True)
         self.assertEqual(v["last_day"], "2026-07-05")
 
@@ -294,7 +294,7 @@ class TestRobustness(unittest.TestCase):
                 fh.write(state)
             payload, _, stderr = run_build(data_dir=tmp)
         self.assertEqual(payload["product_count"], 3)
-        self.assertEqual(variants_by_key(payload)[WM]["series"][0], ["2026-06-14", 27000])
+        self.assertEqual(variants_by_key(payload)[WM]["series"][0], ["2026-06-14", 27000, "live"])
         self.assertIn("not valid JSON", stderr)
 
     def test_state_without_history_reconstructs_a_single_point(self):
@@ -307,7 +307,7 @@ class TestRobustness(unittest.TestCase):
                 fh.write(state)
             payload, _, stderr = run_build(data_dir=tmp)
         v = variants_by_key(payload)[WM]
-        self.assertEqual(v["series"], [["2026-06-14", 19900]])  # first_seen day + current price
+        self.assertEqual(v["series"], [["2026-06-14", 19900, "live"]])  # first_seen day + current price
         self.assertEqual(v["low"], 19900)
         self.assertEqual(v["high"], 19900)
         self.assertIn("no history log", stderr)
@@ -422,7 +422,7 @@ class TestUnits(unittest.TestCase):
         self.assertEqual(
             build.collect_series(events)["1:x"],
             # keeps the FIRST day at each price; a price may legitimately recur later
-            [["2026-01-01", 1000], ["2026-01-03", 900], ["2026-01-04", 1000]],
+            [["2026-01-01", 1000, "live"], ["2026-01-03", 900, "live"], ["2026-01-04", 1000, "live"]],
         )
 
     def test_collect_series_orders_by_ts_and_ignores_delisted(self):
@@ -433,7 +433,7 @@ class TestUnits(unittest.TestCase):
         ]
         self.assertEqual(
             build.collect_series(events)["1:x"],
-            [["2026-01-01", 1000], ["2026-01-03", 900]],
+            [["2026-01-01", 1000, "live"], ["2026-01-03", 900, "live"]],
         )
 
     def test_float_price_is_coerced_and_warned_never_left_a_float(self):
@@ -442,9 +442,26 @@ class TestUnits(unittest.TestCase):
         err = io.StringIO()
         with redirect_stderr(err):
             points = build.collect_series(events)["1:x"]
-        self.assertEqual(points, [["2026-01-01", 1000]])
+        self.assertEqual(points, [["2026-01-01", 1000, "live"]])
         self.assertIsInstance(points[0][1], int)
         self.assertIn("float", err.getvalue())
+
+    def test_wayback_points_are_source_tagged_and_not_collapsed_into_live(self):
+        # Backfill (source="wayback", event="observed") merges with the live log by ts. A wayback
+        # and a live point at the SAME price must both survive — the provenance change is what lets
+        # the chart mark where this tracker's own observations begin, even at an unchanged price.
+        events = [
+            {"event": "listed", "variant_key": "1:x", "ts": "2026-07-29T06:00:00Z", "price": 19900},
+            {"event": "observed", "source": "wayback", "variant_key": "1:x",
+             "ts": "2025-08-03T05:00:00Z", "price": 27000},
+            {"event": "observed", "source": "wayback", "variant_key": "1:x",
+             "ts": "2025-09-08T05:00:00Z", "price": 19900},
+        ]
+        self.assertEqual(
+            build.collect_series(events)["1:x"],
+            [["2025-08-03", 27000, "wayback"], ["2025-09-08", 19900, "wayback"],
+             ["2026-07-29", 19900, "live"]],
+        )
 
 
 if __name__ == "__main__":

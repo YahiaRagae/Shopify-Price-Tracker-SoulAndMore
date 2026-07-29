@@ -141,9 +141,9 @@ unchanged) and warns on stderr about any additional stores it did not emit. A mu
           "high": 27000,           // highest price ever OBSERVED by us (minor units)
           "first_day": "2026-07-29",
           "last_day": "2026-07-29",
-          "series": [              // step-function change-points, chronological, minor units
-            ["2026-06-14", 27000], // [UTC date of first observation at this price, price]
-            ["2026-09-08", 19900]
+          "series": [                     // step-function change-points, chronological, minor units
+            ["2025-08-03", 27000, "wayback"], // [UTC date of first obs at this price, price, source]
+            ["2026-07-29", 19900, "live"]     // source: "live" = observed by us, "wayback" = archival
           ]
         }
       ]
@@ -153,9 +153,13 @@ unchanged) and warns on stderr about any additional stores it did not emit. A mu
 ```
 
 `series` contains one point per **price change**: `[UTC date of the FIRST observation at this
-price, price]`. Because a `change` event also fires on availability/compare_at edits, the build
-step **must collapse consecutive equal prices**, keeping the first occurrence's day — a restock at
-an unchanged price must NOT create a new series point. To draw the step chart: hold each price flat
+price, price, source]`, where `source` is `"live"` (observed by this tracker) or `"wayback"` (an
+archival estimate recovered from the Internet Archive — see §5). Because a `change` event also
+fires on availability/compare_at edits, the build step **must collapse consecutive equal prices**,
+keeping the first occurrence's day — a restock at an unchanged price must NOT create a new series
+point. Collapsing stops at a **provenance change**: a wayback point and a live point at the same
+price are BOTH kept, so the chart can mark where our own observations begin. The site renders
+wayback points muted/dashed and live points solid; an inferred price is never shown as an observed one. To draw the step chart: hold each price flat
 until the next point, then extend the last price flat to `last_day`. A single-element series
 renders as one dot / flat line (the common day-one state) — the site must handle it gracefully with
 a "tracking started" empty state, never a broken axis.
@@ -173,10 +177,23 @@ Sort keys the site should support (computed client-side from the above):
 
 - `python -m tracker.collect` — fetch + diff + append; exit 0 on success, **non-zero on any
   failure** (never writes a partial snapshot). Reads/writes files in §1 and §2.
-- `python -m tracker.build` — reads §1 + §2, writes §3 (`docs/data.json`). No network.
+- `python -m tracker.build` — reads §1 + §2 + §5, writes §3 (`docs/data.json`). No network.
+- `python -m tracker.backfill` — ONE-OFF (not in CI). Harvests archival prices, writes §5.
 - `tracker.common` — shared helpers: `to_minor(s) -> int`, `now_iso() -> str`,
   `day_of(ts) -> str`, HTTP fetch with descriptive User-Agent + retry/backoff.
 - Store config comes from `stores.yml` (parsed with stdlib only — see that file's format).
 
 **Stdlib only.** No third-party runtime dependencies (no `requests`, no `pyyaml`). Tests may use
 `pytest` if available but must also pass under `python -m unittest`.
+
+## 5. `data/<slug>/backfill.jsonl` — one-off Wayback historical seed (committed once)
+
+Same JSONL shape as §1, but produced once by `tracker.backfill` from Internet Archive snapshots and
+committed as an immutable dataset — NOT appended by the collector, NOT regenerated in CI. The build
+step reads it in addition to `history.jsonl` and merges by `variant_key` (sorted by `ts`). Every
+line has `event: "observed"` and `source: "wayback"`; `price` is the archived catalogue price in
+minor units; `available`/`compare_at` are `null` (unknown from the archive). Each line also carries
+`capture` (the raw Wayback timestamp `YYYYMMDDHHMMSS`) for provenance. Only observations whose
+`variant_key` maps to a currently-tracked variant are kept (archived-only/relisted products are
+dropped). This history is sparse by nature — the archive holds only ~9 days of this store in the
+last year — so charts show scattered archival dots, clearly distinguished from live observations.

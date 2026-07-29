@@ -25,8 +25,9 @@ DEFAULT_DATA_DIR = os.path.join(REPO_ROOT, "data")
 DEFAULT_OUT = os.path.join(REPO_ROOT, "docs", "data.json")
 
 # Events that carry an observed price. `delisted` carries price=null by contract (§1) and is
-# therefore never a series point — the chart simply stops at the last known price.
-PRICE_EVENTS = frozenset({"listed", "change"})
+# therefore never a series point — the chart simply stops at the last known price. `observed`
+# is a Wayback backfill point (source="wayback"), merged in from data/<slug>/backfill.jsonl.
+PRICE_EVENTS = frozenset({"listed", "change", "observed"})
 
 # Top-level key order of §3. Kept explicit so the emitted file reads like the schema.
 _TOP_KEYS = ("store", "generated_at", "currency", "product_count", "variant_count", "products")
@@ -65,10 +66,15 @@ def _as_minor(value, ctx: str):
 
 
 # --------------------------------------------------------------------------- input
-def read_history(path: str) -> list[dict]:
-    """Read history.jsonl (§1). Missing file or bad lines → warning + best effort."""
+def read_history(path: str, *, optional: bool = False) -> list[dict]:
+    """Read a JSONL event log (§1). Missing file or bad lines → warning + best effort.
+
+    `optional=True` silences the missing-file warning — used for backfill.jsonl, which simply
+    may not exist yet.
+    """
     if not os.path.exists(path):
-        warn(f"no history log at {path} — series will be reconstructed from state.json")
+        if not optional:
+            warn(f"no history log at {path} — series will be reconstructed from state.json")
         return []
     events: list[dict] = []
     bad = 0
@@ -135,8 +141,8 @@ def collect_series(events: list[dict]) -> dict[str, list[list]]:
 
     series: dict[str, list[list]] = {}
     for key, evs in by_key.items():
-        # The log is append-only and therefore already ordered; sort defensively anyway.
-        # UTC ISO-8601 with a trailing Z sorts correctly as a plain string.
+        # Merge live + backfill: sort by ts (UTC ISO-8601 + Z sorts lexically). Wayback points
+        # (2025..mid-2026) therefore precede the live points (tracking began 2026-07-29).
         evs.sort(key=lambda e: str(e.get("ts") or ""))
         points: list[list] = []
         for ev in evs:
@@ -147,10 +153,13 @@ def collect_series(events: list[dict]) -> dict[str, list[list]]:
             price = _as_minor(ev.get("price"), f"{key} @ {ts}")
             if price is None:
                 continue  # delisted, or an unusable value already warned about
+            source = "wayback" if ev.get("source") == "wayback" else "live"
             day = day_of(ts)
-            if points and points[-1][1] == price:
-                continue  # availability/compare-at-only change — not a price change-point
-            points.append([day, price])
+            # Collapse only when BOTH price and provenance are unchanged, so the wayback->live
+            # handoff always leaves a visible "tracking started" point even at an equal price.
+            if points and points[-1][1] == price and points[-1][2] == source:
+                continue
+            points.append([day, price, source])
         series[key] = points
     return series
 
@@ -167,7 +176,7 @@ def _variant_payload(key: str, entry: dict, points: list[list]) -> dict:
         # truncated. Reconstruct the one point we can defend (state's own first_seen + current
         # price) so the site never gets a priced variant with an unplottable empty chart.
         warn(f"{key}: no history events — reconstructed a single point from state.json")
-        points = [[day_of(first_seen), price]]
+        points = [[day_of(first_seen), price, "live"]]
 
     observed = [p[1] for p in points]
     low = min(observed) if observed else price
@@ -312,6 +321,7 @@ def build_store(store: dict, data_dir: str) -> dict:
     store_dir = os.path.join(data_dir, slug)
     state = read_state(os.path.join(store_dir, "state.json"))
     events = read_history(os.path.join(store_dir, "history.jsonl"))
+    events += read_history(os.path.join(store_dir, "backfill.jsonl"), optional=True)  # wayback
     payload = build_payload(store, state, collect_series(events))
     log(f"{slug}: {payload['product_count']} product(s), {payload['variant_count']} variant(s)")
     return payload

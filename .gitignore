@@ -7,3 +7,6 @@ venv/
 *.tmp
 # local scratch, never committed
 /scratch/
+
+# wayback raw-HTML cache (backfill.jsonl itself IS committed)
+data/*/.backfill_cache/

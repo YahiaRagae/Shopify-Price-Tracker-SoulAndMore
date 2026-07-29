@@ -519,6 +519,40 @@ select {
 .chart .pt-low { stroke: var(--ok-ink); }
 .chart .pt-now { fill: var(--accent); stroke: var(--surface); }
 
+/* Archival (Internet Archive) history renders muted + dashed so an inferred price is never
+   mistaken for one this tracker actually observed. */
+.chart .line-wb {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.8;
+  stroke-dasharray: 4 3;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  opacity: .85;
+}
+.chart .line-gap {  /* the untracked stretch between the last archive snapshot and launch */
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.6;
+  stroke-dasharray: 1 4;
+  stroke-linecap: round;
+  opacity: .6;
+}
+.chart .pt-wb { fill: var(--surface); stroke: var(--muted); stroke-width: 1.6; }
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 6px 0 0;
+  font-size: .72rem;
+  color: var(--muted);
+}
+.chart-legend .lg { display: inline-flex; align-items: center; gap: 6px; }
+.chart-legend .lg::before { content: ""; width: 16px; flex: none; }
+.chart-legend .lg-wb::before { border-top: 2px dashed var(--muted); }
+.chart-legend .lg-live::before { border-top: 2px solid var(--accent); }
+
 .chart-note {
   margin: 4px 0 0;
   font-size: .8rem;
