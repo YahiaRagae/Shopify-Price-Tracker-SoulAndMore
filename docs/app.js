@@ -468,6 +468,16 @@ function historyChart(variant) {
   if (live.length > 1) {
     nodes.push(svg('polyline', { class: 'h-live-line', points: live.map((a, i) => `${X(lXf[i]).toFixed(1)},${Y(a[1]).toFixed(1)}`).join(' ') }));
   }
+  // Faint dotted "bridge" across the no-data gap: links the last archival price to the first live
+  // one so the series reads continuously. Dotted + muted (fainter than the archival line) so it
+  // clearly signals "we're only connecting the endpoints — the path between is unknown".
+  if (hasGap) {
+    nodes.push(svg('line', {
+      class: 'h-gap-line',
+      x1: X(aXf[aXf.length - 1]), y1: Y(wb[wb.length - 1][1]),
+      x2: X(lXf[0]), y2: Y(live[0][1]),
+    }));
+  }
 
   const aMin = wb.length ? Math.min(...wb.map((p) => p[1])) : null;
   const hits = []; // {x, y, date, price, source} for the tap/focus targets built below
