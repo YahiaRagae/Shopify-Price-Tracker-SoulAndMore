@@ -136,7 +136,7 @@
           "variant_title": "Default Title",
           "price": null,
           "compare_at": null,
-          "available": false,
+          "available": null,
           "delisted": true,
           "low": 22000,
           "high": 22000,
