@@ -103,6 +103,11 @@ variant is never deleted from `variants`; once `delisted` it stays with `deliste
 Single JSON object, compact. Rewritten every run. This is the ONLY data file the browser
 fetches. Prices are minor units (browser divides by 100).
 
+**Multi-store (v1 rule):** `stores.yml` is designed for N stores, but `data.json` is single-store.
+For v1 the build emits the **first configured store** to `docs/data.json` (the shape below,
+unchanged) and warns on stderr about any additional stores it did not emit. A multi-store shape
+(per-slug files + an index) is deferred until a second store is actually added.
+
 ```jsonc
 {
   "store": "soulandmore.co",
@@ -147,11 +152,17 @@ fetches. Prices are minor units (browser divides by 100).
 }
 ```
 
-`series` contains one point per **price change** (consecutive equal prices are already collapsed
-because the log only records changes). To draw the step chart: hold each price flat until the
-next point, then extend the last price flat to `last_day`. A single-element series renders as one
-dot / flat line (the common day-one state) — the site must handle it gracefully with a "tracking
-started" empty state, never a broken axis. `low`/`high` are computed from observed prices only
+`series` contains one point per **price change**: `[UTC date of the FIRST observation at this
+price, price]`. Because a `change` event also fires on availability/compare_at edits, the build
+step **must collapse consecutive equal prices**, keeping the first occurrence's day — a restock at
+an unchanged price must NOT create a new series point. To draw the step chart: hold each price flat
+until the next point, then extend the last price flat to `last_day`. A single-element series
+renders as one dot / flat line (the common day-one state) — the site must handle it gracefully with
+a "tracking started" empty state, never a broken axis.
+
+Edge case — `state.json` present but `history.jsonl` missing/truncated so a variant has no price
+events: reconstruct a single-point series `[day_of(first_seen), price]` from `state.json` (warn on
+stderr) so a variant never has a current price but an empty chart. `low`/`high` are computed from observed prices only
 (never from `compare_at`, which is seller-controlled and often inflated).
 
 Sort keys the site should support (computed client-side from the above):

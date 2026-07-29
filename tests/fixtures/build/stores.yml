@@ -1,0 +1,6 @@
+# Fixture copy of the real stores.yml, used only by tests/test_build.py so the build test
+# never depends on the repo's live config. Same constrained format (see tracker/common.py).
+stores:
+  - slug: soulandmore.co
+    base_url: https://soulandmore.co
+    currency: EGP

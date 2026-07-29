@@ -1,0 +1,5 @@
+# This is an unofficial, unaffiliated hobby tracker. Keep it out of search results entirely so
+# it can never be mistaken for soulandmore.co itself. (index.html also sends <meta name="robots"
+# content="noindex, nofollow">, which is what actually removes an already-crawled page.)
+User-agent: *
+Disallow: /

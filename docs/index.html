@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Unofficial price history for soulandmore.co, built from automated observations of its public product feed.">
+<title>Soul &amp; More price tracker (unofficial)</title>
+<!-- Inline data-URI icon: keeps the page to zero external requests (see docs/SCHEMA.md — the
+     only network call this site makes is ./data.json). -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%238a5a2b'/%3E%3Cpath d='M5 22h6v-9h6v6h6V9h4' fill='none' stroke='%23fff' stroke-width='3' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="./styles.css">
+<script src="./app.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to products</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <h1>Soul &amp; More price tracker</h1>
+    <p class="tagline">
+      Unofficial price history for
+      <a href="https://soulandmore.co" rel="noopener noreferrer nofollow" target="_blank">soulandmore.co</a>
+    </p>
+    <p class="freshness" id="freshness" aria-live="polite">Loading price history…</p>
+    <p class="notice" id="sample-notice" hidden>
+      Showing <strong>bundled sample data</strong> — the live price file isn’t published yet, so
+      nothing on this page is a real observation.
+    </p>
+  </div>
+</header>
+
+<main id="main" class="wrap">
+
+  <!-- ------------------------------------------------------------------ list view -->
+  <section id="view-list" aria-labelledby="list-heading">
+    <h2 id="list-heading" class="visually-hidden">Tracked products</h2>
+
+    <div class="controls">
+      <search>
+        <div class="field search-field">
+          <label class="visually-hidden" for="q">Search products</label>
+          <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <circle cx="11" cy="11" r="7"></circle><path d="M16.5 16.5 21 21"></path>
+          </svg>
+          <input id="q" type="search" placeholder="Search products…" autocomplete="off"
+                 autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="search">
+          <button type="button" id="q-clear" class="q-clear" hidden aria-label="Clear search">×</button>
+        </div>
+      </search>
+
+      <div class="filters">
+        <div class="field">
+          <label for="sort">Sort</label>
+          <select id="sort">
+            <option value="name" selected>Name A–Z</option>
+            <option value="drop">Biggest real drop</option>
+            <option value="price">Lowest price</option>
+            <option value="recent">Recently changed</option>
+          </select>
+        </div>
+        <label class="switch" for="instock">
+          <input type="checkbox" id="instock">
+          <span>In stock only</span>
+        </label>
+      </div>
+    </div>
+
+    <p class="result-count" id="count" role="status"></p>
+    <p class="hint" id="hint" hidden></p>
+    <ul class="cards" id="results"></ul>
+    <p class="empty-state" id="empty" hidden></p>
+  </section>
+
+  <!-- ---------------------------------------------------------------- detail view -->
+  <section id="view-detail" aria-labelledby="detail-heading" hidden>
+    <button type="button" id="back" class="back">← All products</button>
+    <div id="detail-body"></div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p class="disclaimer">
+      Unofficial and unaffiliated. Automated observations of soulandmore.co’s public product
+      feed, captured at the times shown. May be wrong or out of date — always check the store.
+    </p>
+    <p class="fineprint">
+      Prices in Egyptian pounds (EGP), as published by the store. “Observed low/high” means the
+      lowest and highest price <em>this tracker has seen</em> — not an all-time record.
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>
