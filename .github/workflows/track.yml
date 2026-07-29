@@ -14,15 +14,15 @@
 #     would silently disable the schedule after ~2 months of "no activity".
 #   - The cron is deliberately offset to :17 past the hour (not :00) to dodge the
 #     stampede of workflows GitHub schedules right on the hour, which can delay runs.
-#     '17 5,17 * * *' is 05:17 and 17:17 UTC. Egypt observes DST (reinstated 2023), so in
-#     Cairo that is 08:17 / 20:17 during EEST (UTC+3, ~late Apr–late Oct) and 07:17 / 19:17
-#     during EET (UTC+2) the rest of the year. The cron itself is fixed UTC and unaffected.
+#     '17 5,11,17,23 * * *' runs 4x/day (every 6h) at 05:17 / 11:17 / 17:17 / 23:17 UTC.
+#     Egypt observes DST (reinstated 2023), so in Cairo that is 08:17 / 14:17 / 20:17 / 02:17
+#     during EEST (UTC+3, ~late Apr–late Oct), one hour earlier during EET. Cron is fixed UTC.
 
 name: track
 
 on:
   schedule:
-    - cron: '17 5,17 * * *'
+    - cron: '17 5,11,17,23 * * *'
   workflow_dispatch: {}
 
 permissions:

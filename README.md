@@ -13,7 +13,7 @@ It answers two questions a store's own product page never will:
 ## Architecture
 
 ```
-GitHub Actions (cron, every 12h)
+GitHub Actions (cron, every 6h — 4×/day)
     │  fetch public /products.json
     ▼
 tracker.collect  →  diff against stored state  →  append change events
