@@ -470,30 +470,31 @@ function historyChart(variant) {
   }
 
   const aMin = wb.length ? Math.min(...wb.map((p) => p[1])) : null;
+  const hits = []; // {x, y, date, price, source} for the tap/focus targets built below
 
   // archival: hollow rings + date labels, lowest one flagged
   wb.forEach((a, i) => {
     const x = X(aXf[i]), y = Y(a[1]);
-    nodes.push(svg('circle', { class: 'h-arch-dot', cx: x, cy: y, r: 4.3 },
-      svg('title', {}, `${niceDay(a[0])} · ${money(a[1])} · Internet Archive estimate`)));
+    nodes.push(svg('circle', { class: 'h-arch-dot', cx: x, cy: y, r: 4.3 }));
     nodes.push(svg('text', { class: 'h-date', x: x, y: bot + 18, 'text-anchor': 'middle' }, shortDay(a[0])));
     if (a[1] === aMin && aMin < hi) {
       nodes.push(svg('text', { class: 'h-dip', x: x, y: y + 18, 'text-anchor': 'middle' }, `▾ ${compactPrice(a[1])}`));
     }
+    hits.push({ x, y, date: a[0], price: a[1], source: 'wayback' });
   });
 
   // live: solid dots; the last one is emphasised as "now/today" unless the variant is delisted
   live.forEach((a, i) => {
     const x = X(lXf[i]), y = Y(a[1]);
     const isNow = i === live.length - 1 && !delisted;
-    nodes.push(svg('circle', { class: isNow ? 'h-now-dot' : 'h-live-dot', cx: x, cy: y, r: isNow ? 6.4 : 4.3 },
-      svg('title', {}, `${niceDay(a[0])} · ${money(a[1])} · observed`)));
+    nodes.push(svg('circle', { class: isNow ? 'h-now-dot' : 'h-live-dot', cx: x, cy: y, r: isNow ? 6.4 : 4.3 }));
     if (isNow) {
       nodes.push(svg('text', { class: 'h-now-val', x: x, y: y - 11, 'text-anchor': 'middle' }, compactPrice(a[1])));
       nodes.push(svg('text', { class: 'h-today', x: x, y: bot + 18, 'text-anchor': 'middle' }, 'Today'));
     } else {
       nodes.push(svg('text', { class: 'h-date', x: x, y: bot + 18, 'text-anchor': 'middle' }, shortDay(a[0])));
     }
+    hits.push({ x, y, date: a[0], price: a[1], source: 'live' });
   });
 
   const archival = wb.length;
@@ -501,9 +502,41 @@ function historyChart(variant) {
   const summary = `${series.length} price points; lowest ${money(lo)}, highest ${money(hi)}, now ${money(nowP)}.` +
     (archival ? ` ${archival} ${archival === 1 ? 'is an archival estimate' : 'are archival estimates'} from the Internet Archive.` : '');
 
-  return el('div', { class: 'chartwrap' },
-    svg('svg', { class: 'chart', viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `Price history. ${summary}` },
-      svg('desc', {}, summary), nodes));
+  // ---- tap-to-inspect: a tooltip pinned to whichever point you tap (or focus with the keyboard).
+  const tip = el('div', { class: 'chart-tip', hidden: true, role: 'status', 'aria-live': 'polite' });
+  const keyOf = (info) => `${info.date}:${info.price}`;
+  const showTip = (info) => {
+    const arch = info.source === 'wayback';
+    tip.replaceChildren(
+      el('span', { class: 'tip-price', text: money(info.price) }),
+      el('span', { class: 'tip-date', text: niceDay(info.date) }),
+      el('span', { class: `tip-src ${arch ? 'is-arch' : 'is-obs'}`,
+        text: arch ? 'Internet Archive estimate' : 'Observed by this tracker' }));
+    tip.style.left = `${Math.min(84, Math.max(16, (info.x / W) * 100))}%`;
+    tip.style.top = `${(info.y / H) * 100}%`;
+    tip.classList.toggle('below', info.y < H * 0.42); // flip under the point when it sits up top
+    tip.hidden = false;
+    tip.dataset.k = keyOf(info);
+  };
+  const toggleTip = (info) => {
+    if (!tip.hidden && tip.dataset.k === keyOf(info)) tip.hidden = true;
+    else showTip(info);
+  };
+  const hitNodes = hits.map((info) =>
+    svg('circle', {
+      class: 'h-hit', cx: info.x, cy: info.y, r: 16, tabindex: '0', role: 'button',
+      'aria-label': `${niceDay(info.date)}, ${money(info.price)}, ${info.source === 'wayback' ? 'Internet Archive estimate' : 'observed by this tracker'}. Activate to pin.`,
+      onclick: (e) => { e.stopPropagation(); toggleTip(info); },
+      onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleTip(info); } },
+      onfocus: () => showTip(info),
+    }));
+
+  const chartEl = svg('svg',
+    { class: 'chart', viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `Price history. ${summary}` },
+    svg('desc', {}, summary), nodes, hitNodes);
+  const wrap = el('div', { class: 'chartwrap' }, chartEl, tip);
+  wrap.addEventListener('click', () => { tip.hidden = true; }); // tap the chart background to dismiss
+  return wrap;
 }
 
 /** Plain-language one-liner under the chart. Factual: never claims "on sale" (we can't know that). */

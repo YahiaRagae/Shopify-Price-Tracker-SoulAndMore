@@ -716,7 +716,7 @@ select {
 .legend .li { display: inline-flex; align-items: center; gap: 5px; }
 .legend .obs { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
 .legend .arc { width: 9px; height: 9px; border-radius: 50%; background: transparent; border: 1.6px solid var(--accent); opacity: .7; }
-.chartwrap { margin-top: 10px; width: 100%; }
+.chartwrap { margin-top: 10px; width: 100%; position: relative; }
 .story { font-size: .8rem; color: var(--ink); line-height: 1.45; margin-top: 12px; }
 .story b { font-weight: 650; }
 .story .g { color: var(--ok-ink); font-weight: 650; }
@@ -747,3 +747,21 @@ select {
 .chart .h-today { fill: var(--accent); font-size: 9.5px; font-weight: 700; }
 .chart .h-date { fill: var(--muted); font-size: 9.5px; font-variant-numeric: tabular-nums; }
 .chart .h-dip { fill: var(--ok-ink); font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ---- tap-to-inspect: transparent hit targets + a pinned tooltip ---- */
+.chart .h-hit { fill: transparent; pointer-events: all; cursor: pointer; }
+.chart .h-hit:focus { outline: none; }
+.chart .h-hit:focus-visible { fill: color-mix(in srgb, var(--accent) 14%, transparent); stroke: var(--accent); stroke-width: 1.4; }
+.chart-tip {
+  position: absolute; z-index: 6; pointer-events: none; transform: translate(-50%, calc(-100% - 12px));
+  display: flex; flex-direction: column; gap: 1px; align-items: center; text-align: center; min-width: 92px;
+  padding: 6px 10px; border-radius: 9px; background: var(--surface-2); border: 1px solid var(--line);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .28);
+}
+.chart-tip.below { transform: translate(-50%, 12px); }
+.chart-tip[hidden] { display: none; }
+.tip-price { font-size: 13.5px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.tip-date { font-size: 10.5px; color: var(--muted); }
+.tip-src { font-size: 10px; font-weight: 600; }
+.tip-src.is-arch { color: var(--muted); }
+.tip-src.is-obs { color: var(--accent); }
