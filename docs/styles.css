@@ -647,3 +647,103 @@ select {
   .card:hover { border-color: var(--accent); }
   .chip, .back { transition: background-color .15s ease, border-color .15s ease; }
 }
+
+/* ================================================================= price panel redesign ("answer first") */
+.was {
+  font-size: .9rem; color: var(--muted);
+  text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent);
+}
+.drop {
+  font-size: .78rem; font-weight: 650; color: var(--ok-ink); line-height: 1;
+  background: color-mix(in srgb, var(--ok-ink) 14%, transparent);
+  border-radius: 6px; padding: 3px 6px;
+}
+
+/* ---- verdict chip: the buying answer, up front ---- */
+.verdict {
+  display: flex; align-items: center; gap: 9px; margin-top: 15px;
+  padding: 11px 12px; border-radius: 10px; font-size: .86rem; font-weight: 600; line-height: 1.25;
+}
+.verdict .v-badge {
+  flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800;
+}
+.verdict .sub { display: block; font-weight: 500; font-size: .72rem; color: var(--muted); margin-top: 2px; }
+.verdict.good { background: color-mix(in srgb, var(--ok-ink) 11%, transparent); color: var(--ok-ink);
+  border: 1px solid color-mix(in srgb, var(--ok-ink) 24%, transparent); }
+.verdict.good .v-badge { background: color-mix(in srgb, var(--ok-ink) 20%, transparent); }
+.verdict.mid { background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); }
+.verdict.mid .v-badge { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent); }
+.verdict.high { background: color-mix(in srgb, var(--warn-ink) 11%, transparent); color: var(--warn-ink);
+  border: 1px solid color-mix(in srgb, var(--warn-ink) 24%, transparent); }
+.verdict.high .v-badge { background: color-mix(in srgb, var(--warn-ink) 20%, transparent); }
+
+/* ---- position track: LOWEST — now — HIGHEST ---- */
+.pos { margin-top: 16px; }
+.pos-scale { position: relative; height: 14px; margin: 22px 2px 0; }
+.pos-track {
+  position: absolute; top: 4px; left: 0; right: 0; height: 8px; border-radius: 999px;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--ok-ink) 62%, transparent) 0%,
+    color-mix(in srgb, var(--ok-ink) 40%, transparent) 24%,
+    color-mix(in srgb, var(--muted) 34%, transparent) 54%,
+    color-mix(in srgb, var(--warn-ink) 44%, transparent) 82%,
+    color-mix(in srgb, var(--warn-ink) 62%, transparent) 100%);
+}
+.pos-now {
+  position: absolute; top: -4px; width: 4px; height: 24px; border-radius: 3px;
+  background: var(--ink); box-shadow: 0 0 0 3px var(--surface); transform: translateX(-50%);
+}
+.pos-flag {
+  position: absolute; bottom: calc(100% + 7px); transform: translateX(-50%); white-space: nowrap;
+  font-size: 11px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 7px; padding: 3px 7px; line-height: 1;
+}
+.pos-flag .cap { color: var(--muted); font-weight: 600; font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; }
+.pos-ends { display: flex; justify-content: space-between; margin-top: 9px; }
+.pos-end { font-size: 11px; line-height: 1.3; }
+.pos-end.hi { text-align: right; }
+.pos-end .k { color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-size: 9.5px; font-weight: 600; }
+.pos-end .k.lo { color: var(--ok-ink); }
+.pos-end .v { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ---- history section ---- */
+.rule { height: 1px; background: var(--line); margin: 18px 0 0; }
+.hist { margin-top: 16px; }
+.hist-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.hist-title { font-size: 10.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); }
+.legend { display: flex; align-items: center; gap: 12px; font-size: 10.5px; color: var(--muted); }
+.legend .li { display: inline-flex; align-items: center; gap: 5px; }
+.legend .obs { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
+.legend .arc { width: 9px; height: 9px; border-radius: 50%; background: transparent; border: 1.6px solid var(--accent); opacity: .7; }
+.chartwrap { margin-top: 10px; width: 100%; }
+.story { font-size: .8rem; color: var(--ink); line-height: 1.45; margin-top: 12px; }
+.story b { font-weight: 650; }
+.story .g { color: var(--ok-ink); font-weight: 650; }
+.foot { font-size: 10px; color: var(--muted); margin-top: 8px; opacity: .85; }
+
+/* ---- day-one / empty state ---- */
+.newpill {
+  display: inline-flex; align-items: center; gap: 7px; margin-top: 14px;
+  font-size: 12px; font-weight: 600; color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 11%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
+  border-radius: 8px; padding: 8px 11px;
+}
+.newpill .np-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.emptynote { font-size: .8rem; color: var(--muted); line-height: 1.45; margin-top: 11px; }
+
+/* ---- history chart marks (inline SVG) ---- */
+.chart .h-usual { stroke: var(--line); stroke-width: 1; }
+.chart .h-usual-label { fill: var(--muted); font-size: 9.5px; font-weight: 600; letter-spacing: .04em; }
+.chart .h-break { stroke: var(--line); stroke-width: 1.4; stroke-dasharray: 2 4; }
+.chart .h-gap { fill: var(--muted); font-size: 9px; opacity: .9; }
+.chart .h-arch-line { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-dasharray: 4 4; opacity: .55; stroke-linejoin: round; stroke-linecap: round; }
+.chart .h-live-line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .h-arch-dot { fill: var(--surface); stroke: var(--accent); stroke-width: 1.7; opacity: .92; }
+.chart .h-live-dot { fill: var(--accent); stroke: var(--surface); stroke-width: 2; }
+.chart .h-now-dot { fill: var(--accent); stroke: var(--surface); stroke-width: 2.4; }
+.chart .h-now-val { fill: var(--ink); font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.chart .h-today { fill: var(--accent); font-size: 9.5px; font-weight: 700; }
+.chart .h-date { fill: var(--muted); font-size: 9.5px; font-variant-numeric: tabular-nums; }
+.chart .h-dip { fill: var(--ok-ink); font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums; }

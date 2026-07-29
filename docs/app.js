@@ -364,142 +364,166 @@ function renderList() {
   }
 }
 
-/* ------------------------------------------------------------------ price chart */
+/* ------------------------------------------------------------------ price verdict + position */
+
+/** minor units, no currency or decimals: 23000 -> "230". For inline prose / chart labels. */
+function compactPrice(minor) {
+  return (minor / 100).toLocaleString('en-US', { maximumFractionDigits: 0 });
+}
+/** Prose money, no decimals: "EGP 230". */
+function moneyC(minor) {
+  return CURRENCY + ' ' + compactPrice(minor);
+}
+/** "2025-09-08" -> "8 Sep". */
+function shortDay(day) {
+  const p = String(day || '').split('-');
+  return p.length === 3 ? `${+p[2]} ${MONTHS[+p[1] - 1] || '?'}` : String(day || '');
+}
+/** "2025-09-08" -> "Sep 2025". */
+function monthYear(day) {
+  const p = String(day || '').split('-');
+  return p.length === 3 ? `${MONTHS[+p[1] - 1] || '?'} ${p[0]}` : '';
+}
+function monthsBetween(fromDay, toDay) {
+  const d = daysBetween(fromDay, toDay);
+  return d == null ? null : Math.max(1, Math.round(d / 30.4));
+}
+
 /**
- * Step-function price chart as inline SVG — no chart library.
- * Holds each observed price flat until the next change-point, then flat to last_day.
+ * Where the current price sits in its own observed range -> a plain-language buying verdict.
+ * This is the answer a shopper actually wants ("is this good right now?"), so it leads the panel.
  */
-function chart(variant) {
-  const points = (variant.series || []).slice();
+function verdictOf(now, lo, hi) {
+  if (now == null || lo == null || hi == null || hi === lo) return null;
+  const p = (now - lo) / (hi - lo);
+  if (now <= lo) return { cls: 'good', mark: '✓', head: 'Lowest price we’ve seen', sub: 'Great time to buy' };
+  if (p <= 0.18) return { cls: 'good', mark: '✓', head: 'Near its lowest — good time to buy', sub: 'Close to the cheapest we’ve tracked' };
+  if (p < 0.66) return { cls: 'mid', mark: '≈', head: 'Around its usual price', sub: 'No unusual discount right now' };
+  return { cls: 'high', mark: '↑', head: 'Higher than usual — maybe wait', sub: 'Near the top of its tracked range' };
+}
 
-  if (!points.length) {
-    return el('p', { class: 'chart-empty', text: 'No price observations recorded for this variant yet.' });
+/** Horizontal LOWEST — NOW — HIGHEST track: the price's position in its range, at a glance. */
+function positionBar(now, lo, hi) {
+  const pct = hi === lo ? 0 : ((now - lo) / (hi - lo)) * 100;
+  const flag = Math.min(88, Math.max(12, pct));
+  const mark = Math.min(98, Math.max(2, pct));
+  return el('div', { class: 'pos' },
+    el('div', { class: 'pos-scale' },
+      el('div', { class: 'pos-track' }),
+      el('div', { class: 'pos-now', style: `left:${mark}%` }),
+      el('div', { class: 'pos-flag', style: `left:${flag}%` },
+        el('span', { class: 'cap', text: 'NOW' }), ' ' + money(now))),
+    el('div', { class: 'pos-ends' },
+      el('div', { class: 'pos-end' },
+        el('div', { class: 'k lo', text: 'LOWEST' }), el('div', { class: 'v', text: money(lo) })),
+      el('div', { class: 'pos-end hi' },
+        el('div', { class: 'k', text: 'HIGHEST' }), el('div', { class: 'v', text: money(hi) }))));
+}
+
+/* ------------------------------------------------------------------ price history chart */
+/**
+ * History as evenly-spaced observation dots (NOT to time scale — the archive samples this store
+ * only a handful of irregular days a year, so a real time axis crams everything into a corner).
+ * Archival estimates are hollow rings on the left; our own observations are solid on the right,
+ * with a labelled "no data" break across the gap. Every point carries its own value/date label.
+ */
+function historyChart(variant) {
+  const series = (variant.series || []).slice();
+  const wb = series.filter((p) => p[2] === 'wayback');
+  const live = series.filter((p) => p[2] !== 'wayback');
+  const delisted = !!variant.delisted;
+  const lo = variant.low, hi = variant.high;
+
+  const W = 340, H = 152, top = 30, bot = 112, plotH = bot - top, padL = 14, padR = 14, innerW = W - padL - padR;
+  const spanY = (hi - lo) || hi * 0.12;
+  const yMin = lo - spanY * 0.45, yMax = hi + spanY * 0.55;
+  const Y = (v) => top + ((yMax - v) / (yMax - yMin)) * plotH;
+  const X = (f) => padL + f * innerW;
+  const frac = (i, n, a, b) => (n <= 1 ? (a + b) / 2 : a + (i * (b - a)) / (n - 1));
+
+  const hasGap = wb.length > 0 && live.length > 0;
+  const aXf = wb.map((_, i) => frac(i, wb.length, 0.06, hasGap ? 0.44 : 0.9));
+  const lXf = live.map((_, i) =>
+    live.length === 1 ? (hasGap ? 0.9 : 0.5) : frac(i, live.length, hasGap ? 0.62 : 0.1, 0.9));
+
+  const nodes = [];
+
+  // "usual {high}" reference hairline
+  nodes.push(svg('line', { class: 'h-usual', x1: padL, x2: X(0.9) + 8, y1: Y(hi), y2: Y(hi) }));
+  nodes.push(svg('text', { class: 'h-usual-label', x: padL, y: Y(hi) - 6 }, `usual ${compactPrice(hi)}`));
+
+  // break band across the untracked gap
+  if (hasGap) {
+    const bx = X((aXf[aXf.length - 1] + lXf[0]) / 2);
+    const mo = monthsBetween(wb[wb.length - 1][0], live[0][0]);
+    nodes.push(svg('line', { class: 'h-break', x1: bx, x2: bx, y1: top - 6, y2: bot + 6 }));
+    nodes.push(svg('text', { class: 'h-gap', x: bx, y: top - 12, 'text-anchor': 'middle' }, mo ? `~${mo} mo` : 'gap'));
+    nodes.push(svg('text', { class: 'h-gap', x: bx, y: bot + 18, 'text-anchor': 'middle' }, 'no data'));
   }
 
-  // A day-one series is a single dot: give it a shorter box so it reads as "one observation"
-  // rather than as a tall, mostly-empty (i.e. broken-looking) chart.
-  const W = 340, H = points.length === 1 ? 116 : 170;
-  const pad = { l: 46, r: 14, t: 16, b: 26 };
-
-  // ---- x domain: first observation .. last time we saw the variant at all
-  const x0 = dayNum(points[0][0]);
-  let x1 = dayNum(variant.last_day);
-  if (!isFinite(x1) || x1 < dayNum(points[points.length - 1][0])) {
-    x1 = dayNum(points[points.length - 1][0]);
+  // dashed connector through archival estimates; solid through live observations
+  if (wb.length > 1) {
+    nodes.push(svg('polyline', { class: 'h-arch-line', points: wb.map((a, i) => `${X(aXf[i]).toFixed(1)},${Y(a[1]).toFixed(1)}`).join(' ') }));
   }
-  const singleDay = !(x1 > x0); // tracked for less than a day: one dot, centred
-  const sx = (day) => {
-    if (singleDay) return pad.l + (W - pad.l - pad.r) / 2;
-    return pad.l + ((dayNum(day) - x0) / (x1 - x0)) * (W - pad.l - pad.r);
-  };
+  if (live.length > 1) {
+    nodes.push(svg('polyline', { class: 'h-live-line', points: live.map((a, i) => `${X(lXf[i]).toFixed(1)},${Y(a[1]).toFixed(1)}`).join(' ') }));
+  }
 
-  // ---- y domain: observed low..high with breathing room (never compare_at)
-  const lo = variant.low != null ? variant.low : points[0][1];
-  const hi = variant.high != null ? variant.high : points[0][1];
-  const span = hi - lo;
-  const padY = span > 0 ? span * 0.18 : Math.max(hi * 0.08, 100);
-  const yMin = lo - padY, yMax = hi + padY;
-  const sy = (price) => {
-    const t = yMax === yMin ? 0.5 : (price - yMin) / (yMax - yMin);
-    return H - pad.b - t * (H - pad.t - pad.b);
-  };
+  const aMin = wb.length ? Math.min(...wb.map((p) => p[1])) : null;
 
-  const endX = singleDay ? sx(points[0][0]) : pad.l + (W - pad.l - pad.r);
-  const lastY = sy(points[points.length - 1][1]);
-
-  // ---- provenance split. A point's 3rd element is its source: 'wayback' (an archival estimate
-  // recovered from the Internet Archive) or 'live'/absent (observed by this tracker). Wayback
-  // points precede live ones by construction (they are all older). We draw the wayback stretch
-  // dashed/muted and the live stretch solid, so an inferred price never looks like an observed one.
-  const src = (p) => (p[2] === 'wayback' ? 'wayback' : 'live');
-  const firstLive = points.findIndex((p) => src(p) === 'live');
-  const t = firstLive === -1 ? points.length : firstLive;
-  const wb = points.slice(0, t);
-  const live = points.slice(t);
-
-  const step = (pts, extendToX) => {
-    if (!pts.length) return '';
-    const seg = [`M ${sx(pts[0][0]).toFixed(1)} ${sy(pts[0][1]).toFixed(1)}`];
-    for (let i = 1; i < pts.length; i++) {
-      seg.push(`H ${sx(pts[i][0]).toFixed(1)}`);
-      seg.push(`V ${sy(pts[i][1]).toFixed(1)}`);
+  // archival: hollow rings + date labels, lowest one flagged
+  wb.forEach((a, i) => {
+    const x = X(aXf[i]), y = Y(a[1]);
+    nodes.push(svg('circle', { class: 'h-arch-dot', cx: x, cy: y, r: 4.3 },
+      svg('title', {}, `${niceDay(a[0])} · ${money(a[1])} · Internet Archive estimate`)));
+    nodes.push(svg('text', { class: 'h-date', x: x, y: bot + 18, 'text-anchor': 'middle' }, shortDay(a[0])));
+    if (a[1] === aMin && aMin < hi) {
+      nodes.push(svg('text', { class: 'h-dip', x: x, y: y + 18, 'text-anchor': 'middle' }, `▾ ${compactPrice(a[1])}`));
     }
-    if (extendToX != null) seg.push(`H ${extendToX.toFixed(1)}`);
-    return seg.join(' ');
-  };
+  });
 
-  const paths = [];
-  if (!wb.length) {
-    // All live: one solid step line with an area fill (the day-one and post-launch case).
-    const line = step(live, endX);
-    paths.push(svg('path', { class: 'area', d: `${line} V ${(H - pad.b).toFixed(1)} H ${sx(points[0][0]).toFixed(1)} Z` }));
-    paths.push(svg('path', { class: 'line', d: line }));
-  } else if (!live.length) {
-    // Only archival points (no live observation): entirely dashed.
-    paths.push(svg('path', { class: 'line line-wb', d: step(wb, endX) }));
-  } else {
-    // Archival stretch (dashed) → a dashed connector holding the last archival price across the
-    // untracked gap → the live stretch (solid, with area). The dashed gap is the honest signal
-    // that we do not actually know the price between the last archive snapshot and launch.
-    const lw = wb[wb.length - 1], fl = live[0];
-    paths.push(svg('path', { class: 'line line-wb', d: step(wb) }));
-    paths.push(svg('path', {
-      class: 'line line-gap',
-      d: `M ${sx(lw[0]).toFixed(1)} ${sy(lw[1]).toFixed(1)} H ${sx(fl[0]).toFixed(1)} V ${sy(fl[1]).toFixed(1)}`,
-    }));
-    const livePath = step(live, endX);
-    paths.push(svg('path', { class: 'area', d: `${livePath} V ${(H - pad.b).toFixed(1)} H ${sx(fl[0]).toFixed(1)} Z` }));
-    paths.push(svg('path', { class: 'line', d: livePath }));
-  }
-
-  const gridline = (price, cls) => [
-    svg('line', { class: `grid ${cls}`, x1: pad.l, x2: W - pad.r, y1: sy(price), y2: sy(price) }),
-    svg('text', { class: `grid-label ${cls}`, x: pad.l - 6, y: sy(price) + 3, 'text-anchor': 'end' },
-      money(price).replace(CURRENCY + ' ', '')),
-  ];
-
-  const dots = points.map((p) =>
-    svg('circle', {
-      class: 'pt' + (src(p) === 'wayback' ? ' pt-wb' : '') +
-        (p[1] === lo ? ' pt-low' : p[1] === hi ? ' pt-high' : ''),
-      cx: sx(p[0]), cy: sy(p[1]), r: 3.4,
-    }));
+  // live: solid dots; the last one is emphasised as "now/today" unless the variant is delisted
+  live.forEach((a, i) => {
+    const x = X(lXf[i]), y = Y(a[1]);
+    const isNow = i === live.length - 1 && !delisted;
+    nodes.push(svg('circle', { class: isNow ? 'h-now-dot' : 'h-live-dot', cx: x, cy: y, r: isNow ? 6.4 : 4.3 },
+      svg('title', {}, `${niceDay(a[0])} · ${money(a[1])} · observed`)));
+    if (isNow) {
+      nodes.push(svg('text', { class: 'h-now-val', x: x, y: y - 11, 'text-anchor': 'middle' }, compactPrice(a[1])));
+      nodes.push(svg('text', { class: 'h-today', x: x, y: bot + 18, 'text-anchor': 'middle' }, 'Today'));
+    } else {
+      nodes.push(svg('text', { class: 'h-date', x: x, y: bot + 18, 'text-anchor': 'middle' }, shortDay(a[0])));
+    }
+  });
 
   const archival = wb.length;
-  const summary = points.length === 1
-    ? `One observed price, ${money(points[0][1])}, since ${niceDay(points[0][0])}.`
-    : `${points.length} price points between ${niceDay(points[0][0])} and ${niceDay(variant.last_day)}` +
-      (archival ? `, of which ${archival} ${archival === 1 ? 'is an archival estimate' : 'are archival estimates'} from the Internet Archive` : '') +
-      `. Lowest ${money(lo)}, highest ${money(hi)}, latest ${money(points[points.length - 1][1])}.`;
+  const nowP = live.length ? live[live.length - 1][1] : series[series.length - 1][1];
+  const summary = `${series.length} price points; lowest ${money(lo)}, highest ${money(hi)}, now ${money(nowP)}.` +
+    (archival ? ` ${archival} ${archival === 1 ? 'is an archival estimate' : 'are archival estimates'} from the Internet Archive.` : '');
 
-  const node = svg('svg', {
-    class: 'chart',
-    viewBox: `0 0 ${W} ${H}`,
-    preserveAspectRatio: 'xMidYMid meet',
-    role: 'img',
-    'aria-label': `Price history chart. ${summary}`,
-  },
-    svg('title', {}, 'Observed price history'),
-    svg('desc', {}, summary),
-    hi !== lo ? gridline(hi, 'is-high') : null,
-    gridline(lo, 'is-low'),
-    paths,
-    dots,
-    // The "now" marker only makes sense when the latest point is a live observation.
-    src(points[points.length - 1]) === 'live'
-      ? svg('circle', { class: 'pt pt-now', cx: endX, cy: lastY, r: 4.6 })
-      : null,
-    singleDay
-      ? svg('text', { class: 'axis', x: sx(points[0][0]), y: H - 8, 'text-anchor': 'middle' },
-          niceDay(points[0][0]))
-      : [
-          svg('text', { class: 'axis', x: pad.l, y: H - 8, 'text-anchor': 'start' },
-            niceDay(points[0][0])),
-          svg('text', { class: 'axis', x: W - pad.r, y: H - 8, 'text-anchor': 'end' },
-            niceDay(variant.last_day)),
-        ]);
+  return el('div', { class: 'chartwrap' },
+    svg('svg', { class: 'chart', viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `Price history. ${summary}` },
+      svg('desc', {}, summary), nodes));
+}
 
-  return node;
+/** Plain-language one-liner under the chart. Factual: never claims "on sale" (we can't know that). */
+function storyText(variant) {
+  const series = variant.series || [];
+  const now = variant.price != null ? variant.price : (series.length ? series[series.length - 1][1] : null);
+  const lo = variant.low, hi = variant.high;
+  const v = verdictOf(now, lo, hi);
+  const nodes = [];
+  if (hi != null && lo != null && hi > lo) {
+    const lowPt = series.reduce((m, p) => (p[1] < m[1] ? p : m), series[0]);
+    nodes.push('Usually about ', el('b', { text: moneyC(hi) }), '. ');
+    nodes.push('Seen as low as ', el('b', { text: moneyC(lo) }), ` (${monthYear(lowPt[0])}). `);
+  }
+  nodes.push('Now ', el('b', { text: moneyC(now) }));
+  if (v && v.cls === 'good') nodes.push(' — ', el('span', { class: 'g', text: now <= lo ? 'the lowest we’ve tracked.' : 'near its lowest.' }));
+  else if (v && v.cls === 'high') nodes.push(' — higher than usual.');
+  else if (v) nodes.push(' — around its usual price.');
+  else nodes.push('.');
+  return nodes;
 }
 
 /** True when a variant's series contains any Internet-Archive-derived point. */
@@ -508,87 +532,78 @@ function hasArchival(variant) {
 }
 
 /* ------------------------------------------------------------------ detail view */
-function statBlock(label, value, note) {
-  return el('div', { class: 'stat' },
-    el('dt', { text: label }),
-    el('dd', {}, el('span', { class: 'stat-value', text: value }),
-      note ? el('span', { class: 'stat-note', text: note }) : null));
-}
-
 function variantPanel(product, variant) {
-  const points = variant.series || [];
-  const last = points.length ? points[points.length - 1] : null;
-  const held = last ? daysBetween(last[0], variant.last_day) : null;
-  const drop = dropFraction(variant);
-
-  const heldText = variant.delisted
-    ? 'no longer sold'
-    : held == null ? '—'
-      : held === 0 ? 'today'
-        : `${held} day${held === 1 ? '' : 's'}`;
-
-  // Delisted variants carry a null current price by contract — show the last price we actually
-  // observed, clearly labelled as such, never a blank or a literal "null".
+  const series = variant.series || [];
+  const hasHist = series.length >= 2;
+  const delisted = !!variant.delisted;
   const lastKnown = isLastKnown(variant);
+  const now = effectivePrice(variant);
+  const was = claimedWas(variant);
+  const dropPct = variant.price != null && was ? Math.round(((was - variant.price) / was) * 100) : 0;
 
-  return el('div', { class: 'variant-panel' },
-    el('div', { class: 'price-headline' },
-      el('span', { class: 'price-now', text: money(effectivePrice(variant)) }),
-      drop > 0
-        ? el('span', { class: 'drop drop-lg', text: `−${Math.round(drop * 100)}% vs its own high` })
-        : null,
-      variant.delisted
-        ? el('span', { class: 'badge badge-gone', text: 'No longer sold' })
-        : variant.available === true
-          ? el('span', { class: 'badge badge-ok', text: 'In stock' })
-          : el('span', { class: 'badge badge-oos', text: 'Out of stock' })),
+  const kids = [];
 
-    lastKnown
-      ? el('p', { class: 'compare-at' },
-          'last observed price · last seen ', niceDay(variant.last_day))
-      : claimedWas(variant)
-        ? el('p', { class: 'compare-at', text: `store lists as ${money(claimedWas(variant))}` })
-        : null,
+  // price row: current price, the store's struck-through "was", a discount chip, stock badge
+  kids.push(el('div', { class: 'price-headline' },
+    el('span', { class: 'price-now', text: money(now) }),
+    was ? el('span', { class: 'was', text: money(was) }) : null,
+    dropPct > 0 ? el('span', { class: 'drop', text: `−${dropPct}%` }) : null,
+    delisted
+      ? el('span', { class: 'badge badge-gone', text: 'No longer sold' })
+      : variant.available === true
+        ? el('span', { class: 'badge badge-ok', text: 'In stock' })
+        : el('span', { class: 'badge badge-oos', text: 'Out of stock' })));
 
-    chart(variant),
+  if (lastKnown) {
+    kids.push(el('p', { class: 'compare-at' }, 'last observed price · last seen ', niceDay(variant.last_day)));
+  }
 
-    hasArchival(variant)
-      ? el('p', { class: 'chart-legend' },
-          el('span', { class: 'lg lg-wb' }, 'Archival estimate (Internet Archive)'),
-          el('span', { class: 'lg lg-live' }, 'Observed by this tracker'))
-      : null,
+  // Day one: one live price, nothing to compare against yet — say so plainly, don't fake a chart.
+  if (!hasHist && !delisted) {
+    kids.push(el('p', { class: 'newpill' }, el('span', { class: 'np-dot' }), 'New — first price recorded today'));
+    kids.push(el('p', { class: 'emptynote' },
+      'We started tracking this on ', el('b', { text: niceDay(variant.first_day) }),
+      '. A price verdict and history will appear here once we’ve seen a few more prices.'));
+    return el('div', { class: 'variant-panel' }, ...kids.filter(Boolean));
+  }
 
-    points.length === 1
-      ? el('p', { class: 'chart-note' },
-          variant.delisted
-            ? `Tracking started ${niceDay(variant.first_day)} — only one price was observed before this stopped being listed. `
-            : `Tracking started ${niceDay(variant.first_day)} — only one price observed so far. `,
-          el('span', {
-            class: 'muted',
-            text: variant.delisted
-              ? 'The line holds that price up to the day we last saw it.'
-              : 'Check back in a few days for a price line.',
-          }))
-      : null,
+  // The buying answer, up front: verdict + where "now" sits in the observed range.
+  if (variant.price != null) {
+    const v = verdictOf(variant.price, variant.low, variant.high);
+    if (v) {
+      kids.push(el('div', { class: `verdict ${v.cls}` },
+        el('span', { class: 'v-badge', text: v.mark }),
+        el('span', {}, v.head, el('span', { class: 'sub', text: v.sub }))));
+    }
+    if (variant.high > variant.low) kids.push(positionBar(variant.price, variant.low, variant.high));
+  }
 
-    el('dl', { class: 'stats' },
-      lastKnown
-        ? statBlock('Last observed', money(effectivePrice(variant)), niceDay(variant.last_day))
-        : statBlock('Now', money(variant.price)),
-      statBlock('Observed low', money(variant.low),
-        variant.price != null && variant.low === variant.price && points.length > 1
-          ? 'at its lowest' : null),
-      statBlock('Observed high', money(variant.high)),
-      statBlock('Days at this price', heldText, last ? niceDay(last[0]) : null)),
+  // Historical detail, secondary.
+  if (hasHist) {
+    kids.push(el('div', { class: 'rule' }));
+    kids.push(el('div', { class: 'hist' },
+      el('div', { class: 'hist-head' },
+        el('div', { class: 'hist-title', text: 'Price history' }),
+        el('div', { class: 'legend' },
+          el('span', { class: 'li' }, el('span', { class: 'obs' }), 'Observed'),
+          el('span', { class: 'li' }, el('span', { class: 'arc' }), 'Archived est.'))),
+      historyChart(variant),
+      el('p', { class: 'story' }, ...storyText(variant)),
+      hasArchival(variant)
+        ? el('p', { class: 'foot', text: 'Hollow points are Internet Archive estimates, not prices we observed — spaced evenly by observation, not to time scale.' })
+        : null));
+  }
 
-    el('p', { class: 'fineprint' },
-      `Observed ${niceDay(variant.first_day)} – ${niceDay(variant.last_day)}`,
-      variant.sku ? ` · SKU ${variant.sku}` : '',
-      ` · ${points.length} price point${points.length === 1 ? '' : 's'}`,
-      (() => {
-        const a = points.filter((p) => p[2] === 'wayback').length;
-        return a ? ` (${a} from the Internet Archive)` : '';
-      })()));
+  kids.push(el('p', { class: 'fineprint' },
+    `Observed ${niceDay(variant.first_day)} – ${niceDay(variant.last_day)}`,
+    variant.sku ? ` · SKU ${variant.sku}` : '',
+    ` · ${series.length} price point${series.length === 1 ? '' : 's'}`,
+    (() => {
+      const a = series.filter((p) => p[2] === 'wayback').length;
+      return a ? ` (${a} from the Internet Archive)` : '';
+    })()));
+
+  return el('div', { class: 'variant-panel' }, ...kids.filter(Boolean));
 }
 
 function renderDetail(product) {
